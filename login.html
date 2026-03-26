@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Login</title>
+
+<style>
+body{
+    font-family:Arial;
+    background:#f0f2f5;
+    margin:0;
+}
+
+.form-box{
+    background:white;
+    width:400px;
+    margin:80px auto;
+    padding:25px;
+    border-radius:10px;
+    box-shadow:0 4px 12px rgba(0,0,0,0.1);
+    text-align:center;
+}
+
+input{
+    width:90%;
+    padding:10px;
+    margin:10px 0;
+}
+
+button{
+    background:#007bff;
+    color:white;
+    border:none;
+    padding:10px;
+    width:95%;
+    cursor:pointer;
+    margin-top:10px;
+}
+
+.link{
+    margin-top:15px;
+}
+
+a{
+    color:#007bff;
+    text-decoration:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="form-box">
+
+    <h2>Login</h2>
+
+    <input id="username" placeholder="Username">
+    <input id="password" type="password" placeholder="Password">
+
+    <button onclick="login()">Login</button>
+
+    <p id="msg" style="color:red;"></p>
+
+    <!--  FORGOT PASSWORD ADDED -->
+    <div class="link">
+        <a href="/forgot-password/">Forgot Password?</a>
+    </div>
+
+    <div class="link">
+        New User?
+        <a href="/register/">Create Account</a>
+    </div>
+
+</div>
+
+<script>
+
+async function login(){
+
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    const response = await fetch("/api/token/",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            username:username,
+            password:password
+        })
+    });
+
+    const data = await response.json();
+
+    if(response.ok){
+
+        // save ACCESS token
+        localStorage.setItem("token", data.access);
+
+        window.location="/dashboard/";
+    }
+    else{
+        document.getElementById("msg").innerText =
+            "Invalid username or password";
+    }
+}
+
+</script>
+
+</body>
+</html>
