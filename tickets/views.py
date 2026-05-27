@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from django.shortcuts import render
@@ -67,6 +67,45 @@ class TicketViewSet(viewsets.ModelViewSet):
             priority=priority
         )
 
+    def update(self, request, *args, **kwargs):
+
+        if not request.user.is_staff:
+            return Response(
+                {"detail": "Only staff can update tickets."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+
+        if not request.user.is_staff:
+            return Response(
+                {"detail": "Only staff can update tickets."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        return super().partial_update(request, *args, **kwargs)
+
+
+# ==============================
+# API ROOT
+# ==============================
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def api_root(request):
+
+    return Response({
+        "admin_portal": request.build_absolute_uri("/admin/"),
+        "register": request.build_absolute_uri("/api/register/"),
+        "login_token": request.build_absolute_uri("/api/token/"),
+        "refresh_token": request.build_absolute_uri("/api/token/refresh/"),
+        "current_user": request.build_absolute_uri("/api/me/"),
+        "tickets": request.build_absolute_uri("/api/tickets/"),
+        "dashboard": request.build_absolute_uri("/api/dashboard/"),
+        "admin_tickets_api": request.build_absolute_uri("/api/admin/tickets/"),
+    })
+
 
 # ==============================
 # DASHBOARD API
@@ -76,18 +115,13 @@ class TicketViewSet(viewsets.ModelViewSet):
 def dashboard_stats(request):
 
     user = request.user
+    tickets = Ticket.objects.all() if user.is_staff else Ticket.objects.filter(user=user)
 
     data = {
-        "total_tickets": Ticket.objects.filter(user=user).count(),
-        "open_tickets": Ticket.objects.filter(
-            user=user, status="OPEN"
-        ).count(),
-        "resolved_tickets": Ticket.objects.filter(
-            user=user, status="RESOLVED"
-        ).count(),
-        "high_priority_tickets": Ticket.objects.filter(
-            user=user, priority="HIGH"
-        ).count(),
+        "total_tickets": tickets.count(),
+        "open_tickets": tickets.filter(status="OPEN").count(),
+        "resolved_tickets": tickets.filter(status="RESOLVED").count(),
+        "high_priority_tickets": tickets.filter(priority="HIGH").count(),
     }
 
     return Response(data)
@@ -110,9 +144,11 @@ def admin_all_tickets(request):
 # USER REGISTER API
 # ==============================
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def register_user(request):
 
     username = request.data.get("username")
+    email = request.data.get("email", "")
     password = request.data.get("password")
 
     if not username or not password:
@@ -129,6 +165,7 @@ def register_user(request):
 
     User.objects.create_user(
         username=username,
+        email=email,
         password=password
     )
 
@@ -136,8 +173,22 @@ def register_user(request):
 
 
 # ==============================
-# FRONTEND TEMPLATE PAGES
+# CURRENT USER API
 # ==============================
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def current_user(request):
+
+    user = request.user
+
+    return Response({
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_staff": user.is_staff,
+    })
+
+
 def login_page(request):
     return render(request, "login.html")
 
@@ -147,12 +198,12 @@ def register_page(request):
 
 
 def dashboard_page(request):
-    return render(request, "dashboard.html")
+    return render(request, "dashboard.html", {"active_nav": "dashboard"})
 
 
 def create_ticket_page(request):
-    return render(request, "create_ticket.html")
+    return render(request, "create_ticket.html", {"active_nav": "create"})
 
 
-def my_tickets_page(request):
-    return render(request, "my_tickets.html")
+def tickets_page(request):
+    return render(request, "tickets.html", {"active_nav": "tickets"})

@@ -1,111 +1,70 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Login</title>
+{% extends "base.html" %}
 
-<style>
-body{
-    font-family:Arial;
-    background:#f0f2f5;
-    margin:0;
-}
+{% block title %}Login | Support Desk{% endblock %}
 
-.form-box{
-    background:white;
-    width:400px;
-    margin:80px auto;
-    padding:25px;
-    border-radius:10px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1);
-    text-align:center;
-}
+{% block body %}
+<main class="auth-shell">
+    <section class="auth-brand">
+        <div class="brand-mark">S</div>
+        <div>
+            <h1>Support Desk</h1>
+            <p>Track requests, prioritize issues, and resolve customer tickets from one focused workspace.</p>
+        </div>
+    </section>
 
-input{
-    width:90%;
-    padding:10px;
-    margin:10px 0;
-}
+    <section class="auth-panel">
+        <form class="auth-box" id="loginForm">
+            <p class="eyebrow">Welcome back</p>
+            <h2>Login</h2>
 
-button{
-    background:#007bff;
-    color:white;
-    border:none;
-    padding:10px;
-    width:95%;
-    cursor:pointer;
-    margin-top:10px;
-}
+            <div id="loginAlert" class="alert"></div>
 
-.link{
-    margin-top:15px;
-}
+            <div class="field">
+                <label for="username">Username</label>
+                <input id="username" name="username" autocomplete="username" required>
+            </div>
 
-a{
-    color:#007bff;
-    text-decoration:none;
-}
-</style>
-</head>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="current-password" required>
+            </div>
 
-<body>
+            <button class="btn btn-primary btn-block" type="submit">Login</button>
 
-<div class="form-box">
+            <div class="form-footer">
+                <span>New here?</span>
+                <a href="/register/">Create account</a>
+            </div>
+        </form>
+    </section>
+</main>
+{% endblock %}
 
-    <h2>Login</h2>
-
-    <input id="username" placeholder="Username">
-    <input id="password" type="password" placeholder="Password">
-
-    <button onclick="login()">Login</button>
-
-    <p id="msg" style="color:red;"></p>
-
-    <!--  FORGOT PASSWORD ADDED -->
-    <div class="link">
-        <a href="/forgot-password/">Forgot Password?</a>
-    </div>
-
-    <div class="link">
-        New User?
-        <a href="/register/">Create Account</a>
-    </div>
-
-</div>
-
+{% block scripts %}
 <script>
+    if (auth.token) {
+        window.location.href = "/dashboard/";
+    }
 
-async function login(){
+    document.getElementById("loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearAlert("loginAlert");
 
-    const username = document.getElementById("username").value;
-    const password = document.getElementById("password").value;
+        const username = document.getElementById("username").value.trim();
+        const password = document.getElementById("password").value;
 
-    const response = await fetch("/api/token/",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            username:username,
-            password:password
-        })
+        try {
+            const data = await apiFetch("/api/token/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({username, password})
+            });
+
+            auth.setToken(data.access);
+            window.location.href = "/dashboard/";
+        } catch (error) {
+            showAlert("loginAlert", "Invalid username or password.");
+        }
     });
-
-    const data = await response.json();
-
-    if(response.ok){
-
-        // save ACCESS token
-        localStorage.setItem("token", data.access);
-
-        window.location="/dashboard/";
-    }
-    else{
-        document.getElementById("msg").innerText =
-            "Invalid username or password";
-    }
-}
-
 </script>
-
-</body>
-</html>
+{% endblock %}

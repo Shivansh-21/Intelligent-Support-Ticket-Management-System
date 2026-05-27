@@ -1,0 +1,216 @@
+{% extends "app_base.html" %}
+
+{% block title %}Tickets | Support Desk{% endblock %}
+
+{% block app_body %}
+<main class="page">
+    <section class="page-head">
+        <div>
+            <h1>Tickets</h1>
+            <p id="ticketsSubtitle">Support requests</p>
+        </div>
+        <a class="btn btn-primary" href="/create-ticket/">Create Ticket</a>
+    </section>
+
+    <section class="surface">
+        <div class="toolbar">
+            <div class="segmented" aria-label="Ticket filter">
+                <button type="button" data-filter="all">All</button>
+                <button type="button" data-filter="OPEN">Open</button>
+                <button type="button" data-filter="IN_PROGRESS">In Progress</button>
+                <button type="button" data-filter="RESOLVED">Resolved</button>
+                <button type="button" data-filter="HIGH">High</button>
+            </div>
+            <button class="btn btn-ghost" type="button" onclick="loadTickets()">Refresh</button>
+        </div>
+
+        <div id="ticketAlert" class="alert"></div>
+        <div id="ticketList" class="ticket-list"></div>
+    </section>
+</main>
+{% endblock %}
+
+{% block app_scripts %}
+<script>
+    let allTickets = [];
+    let currentUser = null;
+    let activeFilter = new URLSearchParams(window.location.search).get("filter") || "all";
+
+    function statusClass(status) {
+        if (status === "RESOLVED") return "badge-resolved";
+        if (status === "IN_PROGRESS") return "badge-progress";
+        return "badge-open";
+    }
+
+    function priorityClass(priority) {
+        if (priority === "HIGH") return "badge-high";
+        if (priority === "MEDIUM") return "badge-medium";
+        return "badge-low";
+    }
+
+    function formatStatus(status) {
+        return status.replace("_", " ");
+    }
+
+    function setFilter(filter) {
+        activeFilter = filter;
+        const nextUrl = filter === "all" ? "/tickets/" : "/tickets/?filter=" + filter;
+        window.history.replaceState({}, "", nextUrl);
+        renderTickets();
+    }
+
+    function filteredTickets() {
+        if (activeFilter === "all") return allTickets;
+        if (activeFilter === "HIGH") return allTickets.filter((ticket) => ticket.priority === "HIGH");
+        return allTickets.filter((ticket) => ticket.status === activeFilter);
+    }
+
+    function renderTickets() {
+        const list = document.getElementById("ticketList");
+        const tickets = filteredTickets();
+
+        document.querySelectorAll("[data-filter]").forEach((button) => {
+            button.classList.toggle("active", button.dataset.filter === activeFilter);
+        });
+
+        list.innerHTML = "";
+
+        if (!tickets.length) {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            empty.textContent = "No tickets found.";
+            list.appendChild(empty);
+            return;
+        }
+
+        tickets.forEach((ticket) => {
+            const item = document.createElement("article");
+            item.className = "ticket-item";
+
+            const top = document.createElement("div");
+            top.className = "ticket-top";
+
+            const main = document.createElement("div");
+            const title = document.createElement("h3");
+            title.className = "ticket-title";
+            title.textContent = ticket.title;
+
+            const desc = document.createElement("p");
+            desc.className = "ticket-desc";
+            desc.textContent = ticket.description;
+
+            const meta = document.createElement("div");
+            meta.className = "meta-line";
+            meta.textContent = "Created " + new Date(ticket.created_at).toLocaleString();
+
+            main.append(title, desc, meta);
+
+            const badges = document.createElement("div");
+            badges.className = "badges";
+
+            const statusBadge = document.createElement("span");
+            statusBadge.className = "badge " + statusClass(ticket.status);
+            statusBadge.textContent = formatStatus(ticket.status);
+
+            const priorityBadge = document.createElement("span");
+            priorityBadge.className = "badge " + priorityClass(ticket.priority);
+            priorityBadge.textContent = ticket.priority;
+
+            badges.append(statusBadge, priorityBadge);
+            top.append(main, badges);
+            item.appendChild(top);
+
+            if (ticket.admin_response) {
+                const response = document.createElement("div");
+                response.className = "ticket-response";
+                response.textContent = ticket.admin_response;
+                item.appendChild(response);
+            }
+
+            if (currentUser && currentUser.is_staff) {
+                item.appendChild(buildAdminEditor(ticket));
+            }
+
+            list.appendChild(item);
+        });
+    }
+
+    function buildAdminEditor(ticket) {
+        const editor = document.createElement("div");
+        editor.className = "admin-editor";
+
+        const statusField = document.createElement("div");
+        statusField.className = "field";
+        const statusLabel = document.createElement("label");
+        statusLabel.textContent = "Status";
+        const statusSelect = document.createElement("select");
+        ["OPEN", "IN_PROGRESS", "RESOLVED"].forEach((status) => {
+            const option = document.createElement("option");
+            option.value = status;
+            option.textContent = formatStatus(status);
+            option.selected = ticket.status === status;
+            statusSelect.appendChild(option);
+        });
+        statusField.append(statusLabel, statusSelect);
+
+        const responseField = document.createElement("div");
+        responseField.className = "field";
+        const responseLabel = document.createElement("label");
+        responseLabel.textContent = "Admin Response";
+        const responseInput = document.createElement("textarea");
+        responseInput.value = ticket.admin_response || "";
+        responseField.append(responseLabel, responseInput);
+
+        const saveButton = document.createElement("button");
+        saveButton.className = "btn btn-primary";
+        saveButton.type = "button";
+        saveButton.textContent = "Save Changes";
+        saveButton.addEventListener("click", async () => {
+            clearAlert("ticketAlert");
+            try {
+                await apiFetch("/api/tickets/" + ticket.id + "/", {
+                    method: "PATCH",
+                    headers: auth.headers(),
+                    body: JSON.stringify({
+                        status: statusSelect.value,
+                        admin_response: responseInput.value.trim()
+                    })
+                });
+                showAlert("ticketAlert", "Ticket updated.", "success");
+                await loadTickets();
+            } catch (error) {
+                showAlert("ticketAlert", error.message);
+            }
+        });
+
+        editor.append(statusField, responseField, saveButton);
+        return editor;
+    }
+
+    async function loadTickets() {
+        clearAlert("ticketAlert");
+
+        try {
+            const [tickets, user] = await Promise.all([
+                apiFetch("/api/tickets/", {headers: auth.headers()}),
+                apiFetch("/api/me/", {headers: auth.headers()})
+            ]);
+
+            currentUser = user;
+            allTickets = Array.isArray(tickets) ? tickets : [];
+            document.getElementById("ticketsSubtitle").textContent = user.is_staff
+                ? "All support requests"
+                : "Your support requests";
+            renderTickets();
+        } catch (error) {
+            showAlert("ticketAlert", error.message);
+        }
+    }
+
+    document.querySelectorAll("[data-filter]").forEach((button) => {
+        button.addEventListener("click", () => setFilter(button.dataset.filter));
+    });
+
+    loadTickets();
+</script>
+{% endblock %}

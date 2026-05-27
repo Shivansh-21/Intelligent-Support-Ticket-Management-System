@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="app-shell">
+    <header class="topbar">
+        <div class="topbar-left">
+            <div class="brand-mark">S</div>
+            <div class="topbar-title">Support Desk</div>
+        </div>
+        <nav class="nav">
+            <a href="/dashboard/" data-nav="dashboard">Dashboard</a>
+            <a href="/create-ticket/" data-nav="create">Create Ticket</a>
+            <a href="/tickets/" data-nav="tickets">Tickets</a>
+            <button type="button" onclick="logout()">Logout</button>
+        </nav>
+    </header>
+
+    {% block app_body %}{% endblock %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    auth.require();
+
+    const currentNav = "{{ active_nav|default:'' }}";
+    if (currentNav) {
+        document.querySelectorAll("[data-nav]").forEach((link) => {
+            if (link.dataset.nav === currentNav) {
+                link.classList.add("active");
+            }
+        });
+    }
+</script>
+{% block app_scripts %}{% endblock %}
+{% endblock %}

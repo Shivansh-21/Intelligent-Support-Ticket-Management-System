@@ -1,97 +1,74 @@
-<!DOCTYPE html>
-<html>
-<head>
-<title>Register</title>
+{% extends "base.html" %}
 
-<style>
-body{
-    font-family:Arial;
-    background:#f0f2f5;
-    margin:0;
-}
+{% block title %}Register | Support Desk{% endblock %}
 
-.form-box{
-    background:white;
-    width:400px;
-    margin:80px auto;
-    padding:25px;
-    border-radius:10px;
-    box-shadow:0 4px 12px rgba(0,0,0,0.1);
-    text-align:center;
-}
+{% block body %}
+<main class="auth-shell">
+    <section class="auth-brand">
+        <div class="brand-mark">S</div>
+        <div>
+            <h1>Start clean.</h1>
+            <p>Create an account and submit requests with automatic priority detection.</p>
+        </div>
+    </section>
 
-input{
-    width:90%;
-    padding:10px;
-    margin:10px 0;
-}
+    <section class="auth-panel">
+        <form class="auth-box" id="registerForm">
+            <p class="eyebrow">New account</p>
+            <h2>Register</h2>
 
-button{
-    background:#007bff;
-    color:white;
-    border:none;
-    padding:10px;
-    width:95%;
-    cursor:pointer;
-}
+            <div id="registerAlert" class="alert"></div>
 
-a{
-    text-decoration:none;
-    color:#007bff;
-}
-</style>
-</head>
+            <div class="field">
+                <label for="username">Username</label>
+                <input id="username" name="username" autocomplete="username" required>
+            </div>
 
-<body>
+            <div class="field">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" autocomplete="email">
+            </div>
 
-<div class="form-box">
-    <h2>Create Account</h2>
+            <div class="field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" required>
+            </div>
 
-    <input id="username" placeholder="Username">
-    <input id="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
+            <button class="btn btn-primary btn-block" type="submit">Create Account</button>
 
-    <button onclick="register()">Register</button>
+            <div class="form-footer">
+                <span>Already registered?</span>
+                <a href="/">Login</a>
+            </div>
+        </form>
+    </section>
+</main>
+{% endblock %}
 
-    <p id="msg"></p>
-
-    <p>Already have account?
-        <a href="/">Login</a>
-    </p>
-</div>
-
+{% block scripts %}
 <script>
+    document.getElementById("registerForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        clearAlert("registerAlert");
 
-async function register(){
+        const username = document.getElementById("username").value.trim();
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value;
 
-    const username = document.getElementById("username").value;
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+        try {
+            await apiFetch("/api/register/", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({username, email, password})
+            });
 
-    const response = await fetch("/api/register/",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            username:username,
-            email:email,
-            password:password
-        })
+            showAlert("registerAlert", "Account created. Redirecting to login.", "success");
+            setTimeout(() => {
+                window.location.href = "/";
+            }, 900);
+        } catch (error) {
+            showAlert("registerAlert", error.message);
+        }
     });
-
-    const data = await response.json();
-
-    if(response.ok){
-        alert("✅ Account created successfully!");
-        window.location="/"; // login page
-    }else{
-        document.getElementById("msg").innerText =
-            data.error || "Registration failed";
-    }
-}
-
 </script>
-
-</body>
-</html>
+{% endblock %}
