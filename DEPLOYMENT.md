@@ -99,39 +99,46 @@ python manage.py test
 
 ## Render Deployment
 
-Render config file:
+Since Render discontinued its free PostgreSQL database tier, you have three options to deploy this application:
 
-```text
-render.yaml
-```
+### Option A: Free PostgreSQL with Neon.tech / Supabase (Recommended)
 
-It creates:
+1. Sign up for a free PostgreSQL database on [Neon](https://neon.tech/) or [Supabase](https://supabase.com/).
+2. Copy your database connection string (looks like `postgresql://user:password@host/db`).
+3. In `render.yaml`, you can remove the `databases` block and define a Web Service.
+4. When creating the Web Service on Render, add an environment variable `DATABASE_URL` and paste your Neon/Supabase connection string.
 
-```text
-support-ticket-web  Django web service
-support-ticket-db   Managed PostgreSQL database
-```
+### Option B: Ephemeral SQLite (Testing Only)
 
-Deployment steps:
+If you don't provide a `DATABASE_URL`, the application will automatically fall back to SQLite. 
+*Note: Any data created will be lost whenever the Render web service restarts or redeploys.*
 
-1. Push this project to GitHub.
-2. Go to Render Dashboard.
-3. Open Blueprints.
-4. Click New Blueprint Instance.
-5. Connect your GitHub repository.
-6. Select this repo.
-7. Apply the blueprint.
+---
 
-Render will:
+### Step-by-Step Deployment Steps:
 
-```text
-install requirements
-collect static files
-run migrations before deploy
-start gunicorn
-connect DATABASE_URL automatically
-```
+1. **Push this project to GitHub**:
+   Because the local machine is authenticated to GitHub as `harshitchauhann95`, pushing directly via HTTPS/SSH to `Shivansh-21`'s repository will return a `403 Forbidden` error.
+   
+   To push successfully as `Shivansh-21`:
+   - Generate a Personal Access Token (PAT) on the `Shivansh-21` GitHub account under Settings -> Developer Settings -> Personal Access Tokens (Classic) with `repo` scopes.
+   - Run the push command using your token:
+     ```bash
+     git push https://<YOUR_PERSONAL_ACCESS_TOKEN>@github.com/Shivansh-21/Intelligent-Support-Ticket-Management-System.git main
+     ```
 
-After deploy, open your Render URL.
+2. **Deploy on Render**:
+   - Go to [Render Dashboard](https://dashboard.render.com).
+   - Click **New** -> **Web Service**.
+   - Connect your GitHub account and select the `Intelligent-Support-Ticket-Management-System` repository.
+   - Set the runtime to **Python**.
+   - Build Command: `./build.sh`
+   - Start Command: `gunicorn support_system.wsgi:application`
+   - Under **Environment Variables**, add:
+     - `SECRET_KEY`: (generate a random string)
+     - `DEBUG`: `False`
+     - `ALLOWED_HOSTS`: `your-app-name.onrender.com`
+     - `CSRF_TRUSTED_ORIGINS`: `https://your-app-name.onrender.com`
+     - `DATABASE_URL`: (your Neon or Supabase connection string, if using Option A)
 
-If your Render workspace does not offer a free PostgreSQL plan, choose the available paid/hobby database plan in the dashboard.
+Render will automatically install requirements, collect static files, run migrations, and start the Gunicorn server.
