@@ -91,16 +91,20 @@ WSGI_APPLICATION = 'support_system.wsgi.application'
 # =============================
 # DATABASE
 # =============================
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get(
-            'DATABASE_URL',
-            'postgresql://support_user:support_password@localhost:5432/support_db'
-        ),
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
-}
+if os.environ.get('DATABASE_URL'):
+    DATABASES = {
+        'default': dj_database_url.config(
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # =============================
