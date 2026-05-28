@@ -1304,11 +1304,17 @@
         async function apiFetch(url, options = {}) {
             const response = await fetch(url, options);
             let data = null;
+            let fallbackMessage = "Request failed";
 
             try {
                 data = await response.json();
             } catch (error) {
                 data = null;
+                try {
+                    fallbackMessage = await response.text();
+                } catch (textError) {
+                    fallbackMessage = response.statusText || fallbackMessage;
+                }
             }
 
             if (response.status === 401) {
@@ -1320,7 +1326,7 @@
             if (!response.ok) {
                 const message = data && (data.detail || data.error)
                     ? (data.detail || data.error)
-                    : "Request failed";
+                    : (fallbackMessage || "Request failed");
                 return Promise.reject(new Error(message));
             }
 

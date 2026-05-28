@@ -165,18 +165,24 @@ def admin_all_tickets(request):
 def register_user(request):
 
     username = request.data.get("username")
-    email = request.data.get("email", "")
+    email = request.data.get("email", "").strip()
     password = request.data.get("password")
 
-    if not username or not password:
+    if not username or not email or not password:
         return Response(
-            {"error": "Username and password required"},
+            {"error": "Username, email, and password required"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     if User.objects.filter(username=username).exists():
         return Response(
             {"error": "User already exists"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if User.objects.filter(email__iexact=email).exists():
+        return Response(
+            {"error": "Email already registered"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
