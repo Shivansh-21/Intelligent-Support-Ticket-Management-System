@@ -1,48 +1,67 @@
 services:
-  web:
-    build: .
-    command: >
-      sh -c "python manage.py migrate &&
-             python manage.py runserver 0.0.0.0:8000"
-    env_file:
-      - .env
-    ports:
-      - "8000:8000"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - .:/app
-
   db:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: technova-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-support_db}
-      POSTGRES_USER: ${POSTGRES_USER:-support_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-support_password}
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: technova_support
+      POSTGRES_USER: technova_user
+      POSTGRES_PASSWORD: technova_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-support_user} -d ${POSTGRES_DB:-support_db}"]
+      test: ["CMD-SHELL", "pg_isready -U technova_user -d technova_support"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks:
+      - support_net
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: technova-backend
+    command: >
+      sh -c "python manage.py migrate --no-input &&
+             gunicorn support_system.wsgi:application --bind 0.0.0.0:8000"
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin123}
-    ports:
-      - "5050:80"
+      SECRET_KEY: ${SECRET_KEY:-docker-development-secret-key}
+      DEBUG: ${DEBUG:-"False"}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,backend,frontend}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-http://localhost,http://localhost:8080,http://127.0.0.1,http://127.0.0.1:8080}
+      DATABASE_URL: ${DATABASE_URL:-postgres://technova_user:technova_password@db:5432/technova_support}
+
+      # SMTP / email settings (set these in your environment or a .env file)
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-smtp.gmail.com}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-}
     depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
+      - db
+    expose:
+      - "8000"
+    networks:
+      - support_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: technova-frontend
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+    networks:
+      - support_net
 
 volumes:
   postgres_data:
-  pgadmin_data:
+    name: technova_resolve_postgres_data
+
+networks:
+  support_net:
+    driver: bridge

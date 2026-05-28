@@ -1,27 +1,43 @@
 {% extends "app_base.html" %}
 
-{% block title %}Tickets | Support Desk{% endblock %}
+{% block title %}Tickets | TechNova Resolve{% endblock %}
+{% block workspace_title %}Ticket Resolution Queue{% endblock %}
+{% block workspace_subtitle %}Review, filter, and resolve TechNova IT tickets with priority-aware admin controls.{% endblock %}
 
 {% block app_body %}
 <main class="page">
     <section class="page-head">
         <div>
-            <h1>Tickets</h1>
-            <p id="ticketsSubtitle">Support requests</p>
+            <h1>IT Tickets</h1>
+            <p id="ticketsSubtitle">TechNova Solutions support requests</p>
         </div>
-        <a class="btn btn-primary" href="/create-ticket/">Create Ticket</a>
+        <div class="nav-actions">
+            <a class="btn btn-ghost" href="/admin/" id="ticketsAdminLink" style="display: none;">Backend Admin</a>
+            <a class="btn btn-primary" href="/create-ticket/">Create Ticket</a>
+        </div>
     </section>
 
     <section class="surface">
         <div class="toolbar">
-            <div class="segmented" aria-label="Ticket filter">
-                <button type="button" data-filter="all">All</button>
-                <button type="button" data-filter="OPEN">Open</button>
-                <button type="button" data-filter="IN_PROGRESS">In Progress</button>
-                <button type="button" data-filter="RESOLVED">Resolved</button>
-                <button type="button" data-filter="HIGH">High</button>
+            <div>
+                <p class="eyebrow">Ticket queue</p>
+                <div class="segmented" aria-label="Ticket filter">
+                    <button type="button" data-filter="all">All</button>
+                    <button type="button" data-filter="OPEN">Open</button>
+                    <button type="button" data-filter="IN_PROGRESS">In Progress</button>
+                    <button type="button" data-filter="RESOLVED">Resolved</button>
+                    <button type="button" data-filter="HIGH">High</button>
+                </div>
             </div>
-            <button class="btn btn-ghost" type="button" onclick="loadTickets()">Refresh</button>
+            <div class="queue-tools">
+                <input id="ticketSearch" type="search" placeholder="Search tickets">
+                <select id="ticketSort" aria-label="Sort tickets">
+                    <option value="newest">Newest first</option>
+                    <option value="priority">Priority first</option>
+                    <option value="status">Status</option>
+                </select>
+                <button class="btn btn-ghost" type="button" onclick="loadTickets()">Refresh</button>
+            </div>
         </div>
 
         <div id="ticketAlert" class="alert"></div>
@@ -35,6 +51,8 @@
     let allTickets = [];
     let currentUser = null;
     let activeFilter = new URLSearchParams(window.location.search).get("filter") || "all";
+    let searchTerm = "";
+    let sortMode = "newest";
 
     function statusClass(status) {
         if (status === "RESOLVED") return "badge-resolved";
@@ -52,6 +70,22 @@
         return status.replace("_", " ");
     }
 
+    function categoryFor(ticket) {
+        const text = (ticket.title + " " + ticket.description).toLowerCase();
+        if (["production", "prod", "deployment", "api", "database", "server", "outage"].some((word) => text.includes(word))) return "Production";
+        if (["vpn", "network", "wifi", "internet"].some((word) => text.includes(word))) return "Network";
+        if (["access", "permission", "login", "password"].some((word) => text.includes(word))) return "Access";
+        if (["laptop", "device", "printer", "hardware"].some((word) => text.includes(word))) return "Device";
+        if (["software", "bug", "application", "tool"].some((word) => text.includes(word))) return "Software";
+        return "General IT";
+    }
+
+    function priorityWeight(priority) {
+        if (priority === "HIGH") return 3;
+        if (priority === "MEDIUM") return 2;
+        return 1;
+    }
+
     function setFilter(filter) {
         activeFilter = filter;
         const nextUrl = filter === "all" ? "/tickets/" : "/tickets/?filter=" + filter;
@@ -60,9 +94,32 @@
     }
 
     function filteredTickets() {
-        if (activeFilter === "all") return allTickets;
-        if (activeFilter === "HIGH") return allTickets.filter((ticket) => ticket.priority === "HIGH");
-        return allTickets.filter((ticket) => ticket.status === activeFilter);
+        let tickets = allTickets;
+        if (activeFilter === "HIGH") {
+            tickets = tickets.filter((ticket) => ticket.priority === "HIGH");
+        } else if (activeFilter !== "all") {
+            tickets = tickets.filter((ticket) => ticket.status === activeFilter);
+        }
+
+        if (searchTerm) {
+            tickets = tickets.filter((ticket) => {
+                const haystack = [
+                    ticket.title,
+                    ticket.description,
+                    ticket.status,
+                    ticket.priority,
+                    ticket.admin_response || "",
+                    categoryFor(ticket)
+                ].join(" ").toLowerCase();
+                return haystack.includes(searchTerm);
+            });
+        }
+
+        return [...tickets].sort((a, b) => {
+            if (sortMode === "priority") return priorityWeight(b.priority) - priorityWeight(a.priority);
+            if (sortMode === "status") return a.status.localeCompare(b.status);
+            return new Date(b.created_at) - new Date(a.created_at);
+        });
     }
 
     function renderTickets() {
@@ -101,7 +158,7 @@
 
             const meta = document.createElement("div");
             meta.className = "meta-line";
-            meta.textContent = "Created " + new Date(ticket.created_at).toLocaleString();
+            meta.textContent = "TechNova IT request · Created " + new Date(ticket.created_at).toLocaleString();
 
             main.append(title, desc, meta);
 
@@ -116,7 +173,11 @@
             priorityBadge.className = "badge " + priorityClass(ticket.priority);
             priorityBadge.textContent = ticket.priority;
 
-            badges.append(statusBadge, priorityBadge);
+            const categoryBadge = document.createElement("span");
+            categoryBadge.className = "badge badge-category";
+            categoryBadge.textContent = categoryFor(ticket);
+
+            badges.append(statusBadge, priorityBadge, categoryBadge);
             top.append(main, badges);
             item.appendChild(top);
 
@@ -199,8 +260,9 @@
             currentUser = user;
             allTickets = Array.isArray(tickets) ? tickets : [];
             document.getElementById("ticketsSubtitle").textContent = user.is_staff
-                ? "All support requests"
-                : "Your support requests";
+                ? "Admin workspace for all TechNova IT support requests"
+                : "Your TechNova IT support requests";
+            document.getElementById("ticketsAdminLink").style.display = user.is_staff ? "inline-flex" : "none";
             renderTickets();
         } catch (error) {
             showAlert("ticketAlert", error.message);
@@ -209,6 +271,16 @@
 
     document.querySelectorAll("[data-filter]").forEach((button) => {
         button.addEventListener("click", () => setFilter(button.dataset.filter));
+    });
+
+    document.getElementById("ticketSearch").addEventListener("input", (event) => {
+        searchTerm = event.target.value.trim().toLowerCase();
+        renderTickets();
+    });
+
+    document.getElementById("ticketSort").addEventListener("change", (event) => {
+        sortMode = event.target.value;
+        renderTickets();
     });
 
     loadTickets();

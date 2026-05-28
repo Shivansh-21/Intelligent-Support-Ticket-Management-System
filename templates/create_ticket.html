@@ -1,32 +1,47 @@
 {% extends "app_base.html" %}
 
-{% block title %}Create Ticket | Support Desk{% endblock %}
+{% block title %}Create Ticket | TechNova Resolve{% endblock %}
+{% block workspace_title %}Raise an IT Request{% endblock %}
+{% block workspace_subtitle %}Log software, access, network, laptop, deployment, or production issues for the TechNova service desk.{% endblock %}
 
 {% block app_body %}
 <main class="page">
     <section class="page-head">
         <div>
-            <h1>Create Ticket</h1>
-            <p>Submit a support request for review.</p>
+            <h1>Create IT Ticket</h1>
+            <p>Submit a TechNova Solutions support request for software, access, network, device, or production issues.</p>
         </div>
         <a class="btn btn-ghost" href="/tickets/">View Tickets</a>
     </section>
 
     <section class="surface">
+        <div class="form-intro">
+            <p class="eyebrow">Smart priority detection</p>
+            <h2>Describe the IT issue clearly</h2>
+            <p>Words like outage, production, database down, API down, security breach, VPN, login, laptop, or access help the system classify urgency.</p>
+        </div>
+
+        <div class="template-strip" aria-label="Incident templates">
+            <button type="button" data-template="production">Production Outage</button>
+            <button type="button" data-template="access">Access Issue</button>
+            <button type="button" data-template="network">Network or VPN</button>
+            <button type="button" data-template="device">Laptop or Device</button>
+        </div>
+
         <form id="ticketForm">
             <div id="ticketAlert" class="alert"></div>
 
             <div class="field">
-                <label for="title">Issue Title</label>
+                <label for="title">IT Issue Title</label>
                 <input id="title" name="title" maxlength="200" required>
             </div>
 
             <div class="field">
-                <label for="description">Description</label>
+                <label for="description">Issue Description</label>
                 <textarea id="description" name="description" required></textarea>
             </div>
 
-            <button class="btn btn-primary" type="submit">Submit Ticket</button>
+            <button class="btn btn-primary" type="submit">Submit IT Ticket</button>
         </form>
     </section>
 </main>
@@ -34,6 +49,34 @@
 
 {% block app_scripts %}
 <script>
+    const templates = {
+        production: {
+            title: "Production service outage",
+            description: "Production service is down for users. Impact: business workflow blocked. Affected system/API: . Error observed: ."
+        },
+        access: {
+            title: "Access permission required",
+            description: "I need access or permission for an internal tool. Tool name: . Business reason: . Required access level: ."
+        },
+        network: {
+            title: "VPN or network connectivity issue",
+            description: "VPN/network is slow or not connecting. Location: Bengaluru office/remote. Error message: . Tried steps: ."
+        },
+        device: {
+            title: "Laptop or device support needed",
+            description: "Laptop/device issue affecting work. Device type: . Problem: . Urgency/meeting impact: ."
+        }
+    };
+
+    document.querySelectorAll("[data-template]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const selected = templates[button.dataset.template];
+            document.getElementById("title").value = selected.title;
+            document.getElementById("description").value = selected.description;
+            document.getElementById("description").focus();
+        });
+    });
+
     document.getElementById("ticketForm").addEventListener("submit", async (event) => {
         event.preventDefault();
         clearAlert("ticketAlert");

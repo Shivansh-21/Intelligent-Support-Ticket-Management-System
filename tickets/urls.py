@@ -5,6 +5,8 @@ from .views import (
     api_root,
     current_user,
     dashboard_stats,
+    health_check,
+    reset_password,
     register_user,
     admin_all_tickets
 )
@@ -18,9 +20,11 @@ urlpatterns = [
 
     # Custom APIs
     path('', api_root),
+    path('health/', health_check),
     path('dashboard/', dashboard_stats),
     path('me/', current_user),
     path('register/', register_user),
+    path('password-reset/', reset_password),
 
     # ⭐ ADMIN API (ALL REQUESTS)
     path('admin/tickets/', admin_all_tickets),

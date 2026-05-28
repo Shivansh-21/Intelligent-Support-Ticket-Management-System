@@ -4,16 +4,33 @@
 <div class="app-shell">
     <header class="topbar">
         <div class="topbar-left">
-            <div class="brand-mark">S</div>
-            <div class="topbar-title">Support Desk</div>
+            <div class="brand-mark">T</div>
+            <div>
+                <div class="topbar-title">TechNova Resolve</div>
+                <div class="topbar-subtitle">Bengaluru IT Service Desk</div>
+            </div>
         </div>
         <nav class="nav">
             <a href="/dashboard/" data-nav="dashboard">Dashboard</a>
             <a href="/create-ticket/" data-nav="create">Create Ticket</a>
             <a href="/tickets/" data-nav="tickets">Tickets</a>
+            <a href="/admin/" id="adminPortalLink" class="admin-link" style="display: none;">Backend Admin</a>
             <button type="button" onclick="logout()">Logout</button>
         </nav>
     </header>
+
+    <section class="workspace-band">
+        <div>
+            <p class="eyebrow">TechNova Solutions</p>
+            <h1 id="workspaceTitle">{% block workspace_title %}IT Resolution Workspace{% endblock %}</h1>
+            <p id="workspaceSubtitle">{% block workspace_subtitle %}Track incidents, prioritize operational risk, and resolve employee IT issues faster.{% endblock %}</p>
+        </div>
+        <div class="operator-card">
+            <span>Signed in as</span>
+            <strong id="topbarUser">Loading account</strong>
+            <small id="topbarRole">Checking permissions</small>
+        </div>
+    </section>
 
     {% block app_body %}{% endblock %}
 </div>
@@ -31,6 +48,20 @@
             }
         });
     }
+
+    async function hydrateShellUser() {
+        try {
+            const user = await apiFetch("/api/me/", {headers: auth.headers()});
+            const label = user.is_staff ? "Admin access" : "User account";
+            document.getElementById("topbarUser").textContent = user.username;
+            document.getElementById("topbarRole").textContent = label;
+            document.getElementById("adminPortalLink").style.display = user.is_staff ? "inline-flex" : "none";
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    hydrateShellUser();
 </script>
 {% block app_scripts %}{% endblock %}
 {% endblock %}

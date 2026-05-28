@@ -28,6 +28,8 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 
 # =============================
 # INSTALLED APPS
@@ -130,7 +132,7 @@ USE_TZ = True
 # =============================
 # STATIC FILES
 # =============================
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STORAGES = {
     'staticfiles': {
@@ -156,17 +158,3 @@ REST_FRAMEWORK = {
     ),
 }
 
-
-# =============================
-# EMAIL SETTINGS (PASSWORD RESET)
-# =============================
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-
-EMAIL_HOST_USER = 'yourgmail@gmail.com'
-EMAIL_HOST_PASSWORD = 'your_16_digit_app_password'
-
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

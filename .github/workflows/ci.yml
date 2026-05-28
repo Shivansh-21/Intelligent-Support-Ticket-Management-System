@@ -1,4 +1,4 @@
-name: Django CI
+name: TechNova Resolve CI/CD
 
 on:
   push:
@@ -12,15 +12,15 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: postgres:16-alpine
         env:
-          POSTGRES_DB: support_db
-          POSTGRES_USER: support_user
-          POSTGRES_PASSWORD: support_password
+          POSTGRES_DB: technova_support
+          POSTGRES_USER: technova_user
+          POSTGRES_PASSWORD: technova_password
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U support_user -d support_db"
+          --health-cmd "pg_isready -U technova_user -d technova_support"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -29,7 +29,8 @@ jobs:
       SECRET_KEY: ci-secret-key
       DEBUG: "False"
       ALLOWED_HOSTS: localhost,127.0.0.1
-      DATABASE_URL: postgresql://support_user:support_password@localhost:5432/support_db
+      CSRF_TRUSTED_ORIGINS: http://localhost,http://127.0.0.1
+      DATABASE_URL: postgres://technova_user:technova_password@localhost:5432/technova_support
 
     steps:
       - name: Checkout code
@@ -41,9 +42,9 @@ jobs:
           python-version: "3.13"
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install --no-cache-dir -r requirements.txt
 
-      - name: Check Django project
+      - name: Run Django check
         run: python manage.py check
 
       - name: Run migrations
@@ -51,3 +52,41 @@ jobs:
 
       - name: Run tests
         run: python manage.py test
+
+  docker_build:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Validate Docker Compose config
+        run: docker compose config
+
+      - name: Build Docker images
+        run: docker compose build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: docker_build
+    if: github.ref == 'refs/heads/main' && secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+      - name: Deploy backend to Render
+        if: secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID_BACKEND
+        uses: renderinc/action@v1
+        with:
+          apiKey: ${{ secrets.RENDER_API_KEY }}
+          serviceId: ${{ secrets.RENDER_SERVICE_ID_BACKEND }}
+          branch: main
+          waitForCompletion: true
+
+      - name: Deploy frontend to Render
+        if: secrets.RENDER_API_KEY && secrets.RENDER_SERVICE_ID_FRONTEND
+        uses: renderinc/action@v1
+        with:
+          apiKey: ${{ secrets.RENDER_API_KEY }}
+          serviceId: ${{ secrets.RENDER_SERVICE_ID_FRONTEND }}
+          branch: main
+          waitForCompletion: true

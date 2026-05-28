@@ -39,14 +39,20 @@ class TicketViewSet(viewsets.ModelViewSet):
         ).lower()
 
         high_keywords = [
-            "server", "crash", "down",
+            "server", "production", "prod down",
+            "outage", "crash", "down",
             "not working", "not starting",
-            "system down", "failure"
+            "system down", "failure", "data loss",
+            "security breach", "database down",
+            "deployment failed", "payment failed",
+            "website down", "api down"
         ]
 
         medium_keywords = [
-            "login", "error", "slow",
-            "issue", "problem"
+            "login", "vpn", "email", "network",
+            "printer", "software", "laptop",
+            "access", "permission", "error",
+            "slow", "bug", "issue", "problem"
         ]
 
         priority = "LOW"
@@ -96,6 +102,9 @@ class TicketViewSet(viewsets.ModelViewSet):
 def api_root(request):
 
     return Response({
+        "system": "TechNova Solutions Intelligent Ticket Resolution System",
+        "field": "IT service management",
+        "region": "Bengaluru, India",
         "admin_portal": request.build_absolute_uri("/admin/"),
         "register": request.build_absolute_uri("/api/register/"),
         "login_token": request.build_absolute_uri("/api/token/"),
@@ -104,7 +113,15 @@ def api_root(request):
         "tickets": request.build_absolute_uri("/api/tickets/"),
         "dashboard": request.build_absolute_uri("/api/dashboard/"),
         "admin_tickets_api": request.build_absolute_uri("/api/admin/tickets/"),
+        "password_reset": request.build_absolute_uri("/api/password-reset/"),
     })
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+
+    return Response({"status": "ok", "service": "TechNova Resolve"})
 
 
 # ==============================
@@ -173,6 +190,45 @@ def register_user(request):
 
 
 # ==============================
+# ACCOUNT RECOVERY API
+# ==============================
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def reset_password(request):
+
+    email = request.data.get("email", "").strip()
+    new_password = request.data.get("new_password", "")
+
+    if not email or not new_password:
+        return Response(
+            {"error": "Registered Gmail and new password required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if len(new_password) < 8:
+        return Response(
+            {"error": "Password must be at least 8 characters."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    users = User.objects.filter(email__iexact=email)
+
+    if users.count() != 1:
+        return Response(
+            {"error": "No account found with this registered Gmail."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user = users.first()
+    user.set_password(new_password)
+    user.save()
+
+    return Response({
+        "message": "Password reset successfully. You may now log in with your new password."
+    })
+
+
+# ==============================
 # CURRENT USER API
 # ==============================
 @api_view(['GET'])
@@ -195,6 +251,10 @@ def login_page(request):
 
 def register_page(request):
     return render(request, "register.html")
+
+
+def forgot_password_page(request):
+    return render(request, "forgot_password.html")
 
 
 def dashboard_page(request):

@@ -1,13 +1,15 @@
 {% extends "app_base.html" %}
 
-{% block title %}Dashboard | Support Desk{% endblock %}
+{% block title %}Dashboard | TechNova Resolve{% endblock %}
+{% block workspace_title %}IT Command Center{% endblock %}
+{% block workspace_subtitle %}Monitor TechNova incidents, service workload, and high-priority operational risks across Bengaluru teams.{% endblock %}
 
 {% block app_body %}
 <main class="page">
     <section class="page-head">
         <div>
-            <h1>Dashboard</h1>
-            <p id="dashboardSubtitle">Ticket overview</p>
+            <h1>IT Resolution Dashboard</h1>
+            <p id="dashboardSubtitle">TechNova Solutions Bengaluru support overview</p>
         </div>
         <a class="btn btn-primary" href="/create-ticket/">Create Ticket</a>
     </section>
@@ -30,6 +32,53 @@
             <strong id="highPriorityTickets">0</strong>
         </button>
     </section>
+
+    <section class="resolution-board">
+        <article class="resolution-card">
+            <span>Resolution Rate</span>
+            <strong id="resolutionRate">0%</strong>
+            <p>Resolved workload compared with total ticket volume.</p>
+        </article>
+        <article class="resolution-card">
+            <span>Active Load</span>
+            <strong id="activeLoad">0</strong>
+            <p>Open and in-progress requests currently needing attention.</p>
+        </article>
+        <article class="resolution-card risk-card">
+            <span>SLA Risk</span>
+            <strong id="slaRisk">Normal</strong>
+            <p id="slaRiskCopy">Queue risk is calculated from unresolved high-priority tickets.</p>
+        </article>
+    </section>
+
+    <section class="insight-grid">
+        <article class="insight-panel">
+            <span>Focus Area</span>
+            <strong>Production Stability</strong>
+            <p>High-priority tickets are detected from outages, database failures, API downtime, and security issues.</p>
+        </article>
+        <article class="insight-panel">
+            <span>Service Scope</span>
+            <strong>Software, Network, Access</strong>
+            <p>Employees can raise issues for VPN, email, laptop, login, permissions, deployments, and internal tools.</p>
+        </article>
+        <article class="insight-panel">
+            <span>Region</span>
+            <strong>Bengaluru, India</strong>
+            <p>Designed as an internal IT resolution desk for TechNova Solutions teams operating from Bengaluru.</p>
+        </article>
+    </section>
+
+    <section class="admin-tools" id="adminTools">
+        <div>
+            <h2>Admin Tools</h2>
+            <p>Manage TechNova IT tickets from the frontend, or open Django backend admin for users, staff, and records.</p>
+        </div>
+        <div class="nav-actions">
+            <a class="btn btn-primary" href="/tickets/">Manage Tickets</a>
+            <a class="btn btn-ghost" href="/admin/">Open Backend Admin</a>
+        </div>
+    </section>
 </main>
 {% endblock %}
 
@@ -46,9 +95,22 @@
             document.getElementById("openTickets").textContent = stats.open_tickets;
             document.getElementById("resolvedTickets").textContent = stats.resolved_tickets;
             document.getElementById("highPriorityTickets").textContent = stats.high_priority_tickets;
+            const total = Number(stats.total_tickets) || 0;
+            const resolved = Number(stats.resolved_tickets) || 0;
+            const open = Number(stats.open_tickets) || 0;
+            const high = Number(stats.high_priority_tickets) || 0;
+            const rate = total ? Math.round((resolved / total) * 100) : 0;
+
+            document.getElementById("resolutionRate").textContent = rate + "%";
+            document.getElementById("activeLoad").textContent = Math.max(total - resolved, open);
+            document.getElementById("slaRisk").textContent = high > 3 ? "Critical" : high > 0 ? "Watch" : "Normal";
+            document.getElementById("slaRiskCopy").textContent = high > 0
+                ? high + " high-priority ticket(s) need faster admin action."
+                : "No high-priority pressure detected right now.";
             document.getElementById("dashboardSubtitle").textContent = user.is_staff
-                ? "All support tickets"
-                : "Your support tickets";
+                ? "All TechNova Solutions IT support tickets"
+                : "Your IT support tickets";
+            document.getElementById("adminTools").classList.toggle("show", user.is_staff);
         } catch (error) {
             console.error(error);
         }
