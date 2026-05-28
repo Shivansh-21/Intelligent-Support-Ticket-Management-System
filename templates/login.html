@@ -13,7 +13,7 @@
     </section>
 
     <section class="auth-panel">
-        <form class="auth-box" id="loginForm">
+        <div class="auth-box" id="loginForm">
             <p class="eyebrow">Bengaluru IT operations</p>
             <h2>Login</h2>
 
@@ -29,7 +29,7 @@
                 <input id="password" name="password" type="password" autocomplete="current-password" required>
             </div>
 
-            <button class="btn btn-primary btn-block" type="submit">Login</button>
+            <button class="btn btn-primary btn-block" id="loginButton" type="button" onclick="login()">Login</button>
 
             <div class="form-footer">
                 <a href="/forgot-password/">Forgot password?</a>
@@ -39,35 +39,61 @@
                 <span>New here?</span>
                 <a href="/register/">Create account</a>
             </div>
-        </form>
+        </div>
     </section>
 </main>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    if (auth.token) {
-        window.location.href = "/dashboard/";
-    }
+    auth.clear();
 
-    document.getElementById("loginForm").addEventListener("submit", async (event) => {
-        event.preventDefault();
+    async function login() {
         clearAlert("loginAlert");
 
         const username = document.getElementById("username").value.trim();
-        const password = document.getElementById("password").value;
+        const passwordInput = document.getElementById("password");
+        const password = passwordInput.value;
+        const loginButton = document.getElementById("loginButton");
+
+        if (!username || !password) {
+            showAlert("loginAlert", "Please enter username and password.");
+            return;
+        }
+
+        loginButton.disabled = true;
+        loginButton.textContent = "Checking...";
 
         try {
-            const data = await apiFetch("/api/token/", {
+            const response = await fetch("/api/token/", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({username, password})
             });
 
+            if (!response.ok) {
+                auth.clear();
+                showAlert("loginAlert", "Password wrong. Please enter new pass.");
+                passwordInput.value = "";
+                passwordInput.focus();
+                return;
+            }
+
+            const data = await response.json();
             auth.setToken(data.access);
             window.location.href = "/dashboard/";
         } catch (error) {
-            showAlert("loginAlert", "Invalid username or password.");
+            showAlert("loginAlert", "Login failed. Please try again.");
+        } finally {
+            loginButton.disabled = false;
+            loginButton.textContent = "Login";
+        }
+    }
+
+    document.getElementById("loginForm").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            login();
         }
     });
 </script>
